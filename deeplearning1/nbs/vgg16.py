@@ -52,7 +52,7 @@ class Vgg16():
         model = self.model
         for i in range(layers):
             model.add(ZeroPadding2D((1, 1)))
-            model.add(Convolution2D(filters, 3, 3, activation='relu'))
+            model.add(Convolution2D(filters, (3, 3), activation='relu'))
         model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
 
@@ -94,7 +94,7 @@ class Vgg16():
         self.compile()
 
     def finetune(self, batches):
-        self.ft(batches.nb_class)
+        self.ft(batches.num_class)
         classes = list(iter(batches.class_indices))
         for c in batches.class_indices:
             classes[batches.class_indices[c]] = c
@@ -112,11 +112,24 @@ class Vgg16():
 
 
     def fit(self, batches, val_batches, nb_epoch=1):
-        self.model.fit_generator(batches, samples_per_epoch=batches.nb_sample, nb_epoch=nb_epoch,
-                validation_data=val_batches, nb_val_samples=val_batches.nb_sample)
+        #self.model.fit_generator(batches, samples_per_epoch=batches.samples, nb_epoch=nb_epoch,
+        #        validation_data=val_batches, nb_val_samples=val_batches.samples)
+
+        # see https://github.com/fchollet/keras/wiki/Keras-2.0-release-notes:
+        # and: https://keras.io/models/sequential/#sequential-model-methods
+        # steps_per_epoch: 
+        # Total number of steps (batches of samples) to yield from generator before declaring one epoch finished and starting
+        # the next epoch. It should typically be equal to the number of unique samples of your dataset divided by the batch
+        # size.
+
+        self.model.fit_generator(batches, 
+                                 steps_per_epoch=int(batches.samples/batches.batch_size),
+                                 epochs=nb_epoch,
+                                 validation_data=val_batches, 
+                                 validation_steps=int(val_batches.samples/val_batches.batch_size))
 
 
     def test(self, path, batch_size=8):
         test_batches = self.get_batches(path, shuffle=False, batch_size=batch_size, class_mode=None)
-        return test_batches, self.model.predict_generator(test_batches, test_batches.nb_sample)
+        return test_batches, self.model.predict_generator(test_batches, test_batches.samples)
 
